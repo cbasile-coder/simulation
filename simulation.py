@@ -1,8 +1,12 @@
 import heapq
 import random
 import time
+import argparse
 import matplotlib.pyplot as plt
 from enum import Enum
+from qiskit import transpile
+from qiskit_aer import Aer
+from qiskit.circuit import QuantumCircuit
 
 class SimulationType(Enum):
     CLASSIC = 0
@@ -20,14 +24,32 @@ class Event:
     def __lt__(self, other):
         return self.time < other.time
 
-def GenExponentialTime(rate):
-    return random.expovariate(rate)
+def GenExponentialTime(rate, simTypes):
+    if simTypes == SimulationType.CLASSIC:
+        return random.expovariate(rate)
+    elif simTypes == SimulationType.QUANTUM:
+        backend = Aer.get_backend('qasm_simulator')
+        qc = QuantumCircuit(1, 1)
+        qc.h(0)
+        qc.measure(0, 0)
+        
+        new_circuit = transpile(qc, backend)
+        job = backend.run(new_circuit)
 
-def StartSimulation(arrivalRate, serviceRate, eventCounter, simulationType=SimulationType.CLASSIC):
+        result = job.result()
+        counts = result.get_counts(qc)
+        measurement = int(list(counts.keys())[0])
+        
+        if measurement == 0:
+            return random.expovariate(rate)
+        else:
+            return random.expovariate(rate) * 2
+
+def StartSimulation(arrivalRate, serviceRate, eventCounter, simType=SimulationType.CLASSIC):
     startTime = time.time()
     events = []
-    heapq.heappush(events, Event(GenExponentialTime(arrivalRate), EventType.ARRIVAL))
-    
+    heapq.heappush(events, Event(GenExponentialTime(arrivalRate, simType), EventType.ARRIVAL))
+
     currentTime = 0
     simulatedEvents = 0
     serviceTimes = []
@@ -37,8 +59,8 @@ def StartSimulation(arrivalRate, serviceRate, eventCounter, simulationType=Simul
         currentTime = currentEvent.time
         
         if currentEvent.type == EventType.ARRIVAL:
-            heapq.heappush(events, Event(currentTime + GenExponentialTime(serviceRate), EventType.SERVICE))
-            heapq.heappush(events, Event(currentTime + GenExponentialTime(arrivalRate), EventType.ARRIVAL))
+            heapq.heappush(events, Event(currentTime + GenExponentialTime(serviceRate, simType), EventType.SERVICE))
+            heapq.heappush(events, Event(currentTime + GenExponentialTime(arrivalRate, simType), EventType.ARRIVAL))
         elif currentEvent.type == EventType.SERVICE:
             simulatedEvents += 1
             serviceTimes.append(currentTime)
@@ -49,14 +71,23 @@ def StartSimulation(arrivalRate, serviceRate, eventCounter, simulationType=Simul
     return (endTime - startTime), serviceTimes
 
 def main():
-    # Input arguments (they will be replaced by an external input arguments mechanism)
-    arrivalRate = 1.0    # Event arrival rate
-    serviceRate = 0.5    # Event service rate
-    eventCounter = 10    # Number of events to simulate
+    # Input arguments
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('--type', type=str, default='classic')
+    parser.add_argument('--arrivalRate', type=float, default=1.0)
+    parser.add_argument('--serviceRate', type=float, default=0.5)
+    parser.add_argument('--eventCounter', type=int, default=10)
+    args = parser.parse_args()
+
+    arrivalRate = args.arrivalRate      # Event arrival rate
+    serviceRate = args.serviceRate      # Event service rate
+    eventCounter = args.eventCounter    # Number of events to simulate
+
+    simType = SimulationType.CLASSIC if args.type == 'classic' else SimulationType.QUANTUM
     
     # Simulation start
-    timeToExecution, listOfServices = StartSimulation(arrivalRate, serviceRate, eventCounter)
-    print(f"Time to execution: {timeToExecution}s")
+    timeToExecution, listOfServices = StartSimulation(arrivalRate, serviceRate, eventCounter, simType)
+    print(f"Time to execution: {timeToExecution:.5f}s")
 
     plt.plot(listOfServices, range(len(listOfServices)), marker='o')
     plt.xlabel('Service time (s)')
