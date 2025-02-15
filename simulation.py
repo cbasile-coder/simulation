@@ -1,6 +1,7 @@
 import heapq
 import random
 import time
+import matplotlib.pyplot as plt
 from enum import Enum
 
 class SimulationType(Enum):
@@ -29,6 +30,7 @@ def StartSimulation(arrivalRate, serviceRate, eventCounter, simulationType=Simul
     
     currentTime = 0
     simulatedEvents = 0
+    serviceTimes = []
     
     while simulatedEvents < eventCounter:
         currentEvent = heapq.heappop(events)
@@ -39,11 +41,12 @@ def StartSimulation(arrivalRate, serviceRate, eventCounter, simulationType=Simul
             heapq.heappush(events, Event(currentTime + GenExponentialTime(arrivalRate), EventType.ARRIVAL))
         elif currentEvent.type == EventType.SERVICE:
             simulatedEvents += 1
+            serviceTimes.append(currentTime)
             print(f"Service event executed: {currentTime:.2f}")
 
     print(f"Simulation completed with {simulatedEvents} service events")
     endTime = time.time()
-    return endTime - startTime
+    return (endTime - startTime), serviceTimes
 
 def main():
     # Input arguments (they will be replaced by an external input arguments mechanism)
@@ -52,8 +55,15 @@ def main():
     eventCounter = 10    # Number of events to simulate
     
     # Simulation start
-    timeToExecution = StartSimulation(arrivalRate, serviceRate, eventCounter)
+    timeToExecution, listOfServices = StartSimulation(arrivalRate, serviceRate, eventCounter)
     print(f"Time to execution: {timeToExecution}s")
+
+    plt.plot(listOfServices, range(len(listOfServices)), marker='o')
+    plt.xlabel('Service time (s)')
+    plt.ylabel('Number of service events')
+    plt.title('Simulation results')
+    plt.grid(True)
+    plt.show()
 
 
 if __name__ == "__main__":
