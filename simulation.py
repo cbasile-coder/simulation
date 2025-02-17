@@ -17,9 +17,10 @@ class EventType(Enum):
     SERVICE = 1
 
 class Event:
-    def __init__(self, time, type):
+    def __init__(self, time, type, service_id):
         self.time = time
         self.type = type
+        self.service_id = service_id
     
     def __lt__(self, other):
         return self.time < other.time
@@ -45,25 +46,26 @@ def GenExponentialTime(rate, simTypes):
         else:
             return random.expovariate(rate) * 2
 
-def StartSimulation(arrivalRate, serviceRate, eventCounter, simType=SimulationType.CLASSIC):
+def StartSimulation(arrivalRate, serviceRates, routingProbs, eventCounter, simType=SimulationType.CLASSIC):
     startTime = time.time()
     events = []
-    heapq.heappush(events, Event(GenExponentialTime(arrivalRate, simType), EventType.ARRIVAL))
+    heapq.heappush(events, Event(GenExponentialTime(arrivalRate, simType), EventType.ARRIVAL, 0))
 
     currentTime = 0
     simulatedEvents = 0
-    serviceTimes = []
-    
+    serviceTimes = [[] for _ in range(3)]
+
     while simulatedEvents < eventCounter:
         currentEvent = heapq.heappop(events)
         currentTime = currentEvent.time
         
         if currentEvent.type == EventType.ARRIVAL:
-            heapq.heappush(events, Event(currentTime + GenExponentialTime(serviceRate, simType), EventType.SERVICE))
-            heapq.heappush(events, Event(currentTime + GenExponentialTime(arrivalRate, simType), EventType.ARRIVAL))
+            next_service_id = random.choices([0, 1, 2], weights=routingProbs[:3])[0]
+            heapq.heappush(events, Event(currentTime + GenExponentialTime(serviceRates[next_service_id], simType), EventType.SERVICE, next_service_id))
+            heapq.heappush(events, Event(currentTime + GenExponentialTime(arrivalRate, simType), EventType.ARRIVAL, 0))
         elif currentEvent.type == EventType.SERVICE:
             simulatedEvents += 1
-            serviceTimes.append(currentTime)
+            serviceTimes[currentEvent.service_id].append(currentTime)
             print(f"Service event executed: {currentTime:.2f}")
 
     print(f"Simulation completed with {simulatedEvents} service events")
@@ -79,17 +81,25 @@ def main():
     parser.add_argument('--eventCounter', type=int, default=10)
     args = parser.parse_args()
 
-    arrivalRate = args.arrivalRate      # Event arrival rate
-    serviceRate = args.serviceRate      # Event service rate
-    eventCounter = args.eventCounter    # Number of events to simulate
+    # arrivalRate = args.arrivalRate      # Event arrival rate
+    # serviceRate = args.serviceRate      # Event service rate
+    # eventCounter = args.eventCounter    # Number of events to simulate
+
+    # TODO: input arguments
+    arrivalRate = 0.6 ** -1 
+    serviceRates = [0.4, 0.5, 0.6] 
+    routingProbs = [0.6, 0.4, 0.2]
+    eventCounter = 10
 
     simType = SimulationType.CLASSIC if args.type == 'classic' else SimulationType.QUANTUM
     
     # Simulation start
-    timeToExecution, listOfServices = StartSimulation(arrivalRate, serviceRate, eventCounter, simType)
+    timeToExecution, listOfServices = StartSimulation(arrivalRate, serviceRates, routingProbs, eventCounter, simType)
     print(f"Time to execution: {timeToExecution:.5f}s")
 
-    plt.plot(listOfServices, range(len(listOfServices)), marker='o')
+
+    for i, service in enumerate(listOfServices):
+        plt.plot(service, range(len(service)), marker='o', label=f'Service {i+1}')
     plt.xlabel('Service time (s)')
     plt.ylabel('Number of service events')
     plt.title('Simulation results')
