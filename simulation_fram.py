@@ -8,8 +8,8 @@ class Function:
         self.name = name
         self.output_ready = env.event()
 
-    def run(self, duration, dependent_functions):
-        if random.random() < 0.2:  # 20% probability of delay
+    def run(self, duration, dependent_functions, probDelay=0):
+        if random.random() < probDelay:  # Delay probability
             yield self.env.timeout(random.uniform(1, 5))
             print(f"{self.name} has been delayed!")
         yield self.env.timeout(duration)
@@ -29,9 +29,9 @@ def fram_simulation():
     function_C = Function(env, "Function C")
 
     # Definition of interdependencies
-    env.process(function_A.run(2, [function_B, function_C]))
-    env.process(function_B.run(3, [function_C]))
-    env.process(function_C.run(1, []))
+    env.process(function_A.run(2, [function_B, function_C], 0.45))
+    env.process(function_B.run(3, [function_C], 0.3))
+    env.process(function_C.run(1, [], 0.2))
 
     # Run simulation
     env.run()
