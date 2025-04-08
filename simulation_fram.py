@@ -1,5 +1,6 @@
 import simpy
-import matplotlib.pyplot as plt
+import random
+#import matplotlib.pyplot as plt
 
 class Function:
     def __init__(self, env, name):
@@ -8,10 +9,13 @@ class Function:
         self.output_ready = env.event()
 
     def run(self, duration, dependent_functions):
+        if random.random() < 0.2:  # 20% probability of delay
+            yield self.env.timeout(random.uniform(1, 5))
+            print(f"{self.name} has been delayed!")
         yield self.env.timeout(duration)
         print(f"{self.name} completed at time: {self.env.now}s")
         
-        # Attivare le funzioni dipendenti
+        # Activate dependent functions
         for func in dependent_functions:
             func.output_ready.succeed()
             func.output_ready = self.env.event()
@@ -20,9 +24,9 @@ def fram_simulation():
     env = simpy.Environment()
 
     # Definition of FRAM model functions
-    function_A = Function(env, "Funzione A")
-    function_B = Function(env, "Funzione B")
-    function_C = Function(env, "Funzione C")
+    function_A = Function(env, "Function A")
+    function_B = Function(env, "Function B")
+    function_C = Function(env, "Function C")
 
     # Definition of interdependencies
     env.process(function_A.run(2, [function_B, function_C]))
