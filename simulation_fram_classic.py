@@ -1,6 +1,7 @@
 import simpy
 import random
 #import matplotlib.pyplot as plt
+import framalytics
 
 class Function:
     def __init__(self, env, name):
@@ -20,18 +21,31 @@ class Function:
             func.output_ready.succeed()
             func.output_ready = self.env.event()
 
+def id_to_function(funcs, idList):
+    functions = []
+    for id in idList:
+        if id in funcs:
+            functions += funcs[id].keys()
+    return functions
+
 def fram_simulation():
     env = simpy.Environment()
+    fram = framalytics.FRAM('FRAM_tesi.xfmv')
+    functions = {}
 
     # Definition of FRAM model functions
-    function_A = Function(env, "Function A")
-    function_B = Function(env, "Function B")
-    function_C = Function(env, "Function C")
+    for id, function_name in fram.get_functions().items():
+        dependencies = list(fram.get_function_inputs(function_name).keys())
+        dependencies += list(fram.get_function_preconditions(function_name).keys())
+        dependencies += list(fram.get_function_times(function_name).keys())
+        dependencies += list(fram.get_function_controls(function_name).keys())
+        dependencies += list(fram.get_function_resources(function_name).keys())
+        functions[id] = {Function(env, function_name): dependencies}
 
     # Definition of interdependencies
-    env.process(function_A.run(2, [function_B, function_C], 0.45))
-    env.process(function_B.run(3, [function_C], 0.3))
-    env.process(function_C.run(1, [], 0.2))
+    for id, values in functions.items():
+        for func, value in values.items():
+            env.process(func.run(random.randint(1, 5), id_to_function(functions, value),random.uniform(0.01, 0.99)))
 
     # Run simulation
     env.run()
