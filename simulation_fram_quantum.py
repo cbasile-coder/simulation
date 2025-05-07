@@ -1,7 +1,7 @@
 from qiskit import QuantumCircuit, transpile
 from qiskit_aer import Aer
 import random
-
+import framalytics
 
 class QuantumFunction:
     def __init__(self, name, num_qubits):
@@ -11,14 +11,14 @@ class QuantumFunction:
         self.result = None  # Store the result after simulation
 
     def create_quantum_operation(self):
-        # Example: Apply Hadamard gate to all qubits
+        # Apply Hadamard gate to all qubits for superposition
         for qubit in range(self.num_qubits):
             self.circuit.h(qubit)
         
-        # Randomly add other quantum gates
+        # Introduce random gates to simulate variability
         if random.random() > 0.5:
-            self.circuit.x(0)  # Apply Pauli-X (NOT gate) to the first qubit
-        
+            self.circuit.x(0)  # Pauli-X gate
+
         print(f"{self.name}: Quantum operation created.")
     
     def simulate(self):
@@ -33,32 +33,32 @@ class QuantumFunction:
         print(f"{self.name}: Simulation completed with results: {self.result}")
 
     def modify_based_on_dependency(self, dependency_result):
-        # Example modification based on another function's result
-        if '00' in dependency_result:  # Check for specific outcome
-            self.circuit.x(1)  # Apply an additional gate to the second qubit
+        if '00' in dependency_result:
+            self.circuit.x(1)  # Modify based on prior function’s outcome
             print(f"{self.name}: Modified circuit based on dependency.")
 
-def quantum_simulation():
-    # Define quantum functions
-    function_A = QuantumFunction("Quantum Function A", 2)
-    function_B = QuantumFunction("Quantum Function B", 3)
-    function_C = QuantumFunction("Quantum Function C", 1)
-    
-    # Step 1: Create and simulate operations for function A
-    function_A.create_quantum_operation()
-    function_A.simulate()
-    
-    # Step 2: Modify function B based on the results of function A
-    function_B.create_quantum_operation()
-    if function_A.result:
-        function_B.modify_based_on_dependency(function_A.result)
-    function_B.simulate()
-    
-    # Step 3: Modify function C based on the results of function B
-    function_C.create_quantum_operation()
-    if function_B.result:
-        function_C.modify_based_on_dependency(function_B.result)
-    function_C.simulate()
+def quantum_simulation(fram_model_path):
+    fram = framalytics.FRAM(fram_model_path)
+    quantum_functions = {}
+
+    # Generate Quantum Functions from FRAM model
+    for func_id, func_name in fram.get_functions().items():
+        num_qubits = random.randint(1, 5)  # Assign a random number of qubits per function
+        quantum_functions[func_id] = QuantumFunction(func_name, num_qubits)
+
+    # Simulate each function sequentially with dependency modifications
+    for func_id, q_function in quantum_functions.items():
+        q_function.create_quantum_operation()
+        q_function.simulate()
+
+        # Modify dependent functions based on current function results
+        dependencies = list(fram.get_function_inputs(func_id).keys())
+        for dep_id in dependencies:
+            if dep_id in quantum_functions and q_function.result:
+                quantum_functions[dep_id].modify_based_on_dependency(q_function.result)
+
+    return quantum_functions
 
 if __name__ == "__main__":
-    quantum_simulation()
+    fram_model_path = "FRAM_tesi.xfmv"
+    quantum_simulation(fram_model_path)
